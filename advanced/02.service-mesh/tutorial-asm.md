@@ -284,10 +284,19 @@ ASM では `VirtualService` と `DestinationRule` というリソースを用い
 今回は ProductCatalog というサービスを２バージョンデプロイし、新しいバージョン (v2) には全体の 25 % のみトラフィックを流し、残りの 75 % のトラフィックを安定したバージョン (v1) に流し安全にリリースできるようにします。
 
 ### **新バージョンの ProductCatalog サービスをデプロイ**
-ProductCatalog サービスには `EXTRA_LATENCY` という環境変数で
+実は ProductCatalog サービスには `EXTRA_LATENCY` という環境変数で遅延を発生させる機能があります。今回はアプリケーション自体には手を加えずに、この環境変数を使って遅延を発生させた状態を v2 としてリリースしてみます。
 ```bash
 kubectl apply -f productcatalog-v2.yaml
 
+# cat productcatalog-v2.yaml
+# ...省略...
+#         env:
+#        - name: PORT
+#          value: "3550"
+#        - name: DISABLE_PROFILER
+#          value: "1"
+#        - name: EXTRA_LATENCY
+#          value: 3s
 ```
 
 
