@@ -4,14 +4,14 @@ metadata:
   name: productcatalogservice
 spec:
   hosts:
-  - productcatalogservice.default.svc.cluster.local
+  - productcatalogservice
   http:
   - route:
     - destination:
-        host: productcatalogservice.default.svc.cluster.local
+        host: productcatalogservice
         subset: v1
-      weight: 50
+      weight: 75
     - destination:
-        host: productcatalogservice.default.svc.cluster.local
+        host: productcatalogservice
         subset: v2
-      weight: 50
+      weight: 25

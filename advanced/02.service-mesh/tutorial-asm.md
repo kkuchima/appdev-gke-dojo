@@ -284,13 +284,13 @@ ASM では `VirtualService` と `DestinationRule` というリソースを用い
 今回は ProductCatalog というサービスを２バージョンデプロイし、新しいバージョン (v2) には全体の 25 % のみトラフィックを流し、残りの 75 % のトラフィックを安定したバージョン (v1) に流し安全にリリースできるようにします。
 
 ### **新バージョンの ProductCatalog サービスをデプロイ**
-実は ProductCatalog サービスには `EXTRA_LATENCY` という環境変数で遅延を発生させる機能があります。今回はアプリケーション自体には手を加えずに、この環境変数を使って遅延を発生させた状態を v2 としてリリースしてみます。
+実は ProductCatalog サービスには `EXTRA_LATENCY` という環境変数で遅延を発生させる機能があります。今回はアプリケーション自体には手を加えずに、この環境変数を使って遅延を発生させた状態を v2 としてリリースします。
 ```bash
 kubectl apply -f productcatalog-v2.yaml
 
 # cat productcatalog-v2.yaml
 # ...省略...
-#         env:
+#        env:
 #        - name: PORT
 #          value: "3550"
 #        - name: DISABLE_PROFILER
@@ -299,6 +299,65 @@ kubectl apply -f productcatalog-v2.yaml
 #          value: 3s
 ```
 
+### **DestinationRule と VirtualService のデプロイ**
+ASM のリソースである DestinationRule と VirtualService をデプロイし、ProductCatalog v2 には全体の 25 % のみトラフィックを流すように設定します。  
+
+DestinationRule では `version` ラベルの値を基に、各バージョン (v1, v2) の Subset を定義しています。
+```yaml:dr-catalog.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: productcatalogservice
+spec:
+  host: productcatalogservice.default.svc.cluster.local
+  subsets:
+  - labels:
+      version: v1
+    name: v1
+  - labels:
+      version: v2
+    name: v2
+```
+
+VirtualService では v1 Subset に 全体の75% のトラフィックを流し、v2 Subset に全体の 25% のトラフィックを流すようルーティングを定義しています。
+```yaml:vs-split-traffic.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: productcatalogservice
+spec:
+  hosts:
+  - productcatalogservice
+  http:
+  - route:
+    - destination:
+        host: productcatalogservice
+        subset: v1
+      weight: 75
+    - destination:
+        host: productcatalogservice
+        subset: v2
+      weight: 25
+```
+
+上記マニフェストを適用します。
+```bash
+kubectl apply -f istio-manifests/
+```
+
+### **サンプルアプリケーションへのアクセス**
+以下コマンドを実行し、表示された URL に再度アクセスしてみましょう。少し分かりにくいですが、商品画像をクリックするとおよそ4分の1の確率で遅延が発生するようになっています。
+```bash
+echo http://${DOMAIN}
+```
+
+変化が確認できたら VirtualService と DestinationRule を削除しましょう。
+```bash
+kubectl delete -f vs-split-traffic.yaml
+kubectl delete -f dr-catalog.yaml
+```
+
+## **mTLS を試す**
 
 ## **チャレンジ問題**
 
