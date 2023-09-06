@@ -8,9 +8,9 @@ spec:
   - group: gateway.networking.k8s.io
     kind: Gateway
     name: external-http
-    namespace: default
+    namespace: gateway
   hostnames:
-  - "34-36-240-216.nip.io"
+  - "x-x-x-x.nip.io"
   rules:
   - matches:
     - path:

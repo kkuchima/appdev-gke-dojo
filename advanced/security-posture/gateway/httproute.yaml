@@ -6,7 +6,7 @@ spec:
   parentRefs:
   - name: external-http
   hostnames:
-  - "34-36-240-216.nip.io"
+  - "x-x-x-x.nip.io"
   rules:
   - matches:
     - path:
