@@ -1,0 +1,45 @@
+kind: HTTPRoute
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: public-store-route
+  namespace: store
+  labels:
+    gateway: external-http
+spec:
+  hostnames:
+  - 34-160-250-20.nip.io
+  parentRefs:
+  - name: external-http
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /tokyo
+    backendRefs:
+    - group: net.gke.io
+      kind: ServiceImport
+      name: store-tokyo
+      port: 8080
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /osaka
+    backendRefs:
+      - group: net.gke.io
+        kind: ServiceImport
+        name: store-osaka
+        port: 8080
+  - matches:
+    - headers:
+      - name: env
+        value: canary
+    backendRefs:
+      - group: net.gke.io
+        kind: ServiceImport
+        name: store-osaka
+        port: 8080
+  - backendRefs:
+    - group: net.gke.io
+      kind: ServiceImport
+      name: store
+      port: 8080
