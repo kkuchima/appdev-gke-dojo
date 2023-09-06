@@ -106,7 +106,6 @@ export PROJECT_NUM=`gcloud projects describe ${PROJECT_ID} --format="value(proje
 ```bash
 export REGION1=asia-northeast1
 export CLUSTER_NAME1=gke-tokyo
-export CLUSTER_VERSION=1.26
 ```
 
 ### **2. GKE Autopilot クラスタのデプロイ**
@@ -116,8 +115,7 @@ GKE Autoulot クラスタ `gke-tokyo` をデプロイします。デプロイ完
 ```bash
 gcloud container clusters create-auto ${CLUSTER_NAME1} \
     --location=${REGION1} \
-    --release-channel=stable \
-    --cluster-version=${CLUSTER_VERSION}
+    --release-channel=stable
 ```
 
 ## **参考: Cloud Shell の接続が途切れてしまったときは?**
@@ -282,11 +280,11 @@ ASM では Namespace や Deployment 等に付与されたラベルを基に Muta
 ![mutatingwebhook](https://d33wubrfki0l68.cloudfront.net/af21ecd38ec67b3d81c1b762221b4ac777fcf02d/7c60e/images/blog/2019-03-21-a-guide-to-kubernetes-admission-controllers/admission-controller-phases.png)
 
 ```bash
-kubectl label namespace default istio.io/rev=asm-managed --overwrite
+kubectl label namespace default istio.io/rev=asm-managed-stable --overwrite
 kubectl apply -f asm/sample-online-boutique/
+```
 
-
-``bash
+```bash
 kubectl get pods -w
 ```
 
@@ -321,7 +319,7 @@ shippingservice-58786fbcd4-bvtkq         2/2     Running   0          6m32s
 
 ```bash
 gcloud compute addresses create gatewayip --global --ip-version IPV4
-export IP_ADDR=$(gcloud compute addresses list --format='value(ADDRESS)' --filter="NAME:gatewayip");
+export IP_ADDR=$(gcloud compute addresses list --format='value(ADDRESS)' --filter="NAME:gatewayip")
 export DOMAIN="${IP_ADDR//./-}.nip.io"
 
 sed -i "s/x-x-x-x.nip.io/$DOMAIN/g" asm/k8s-gateway/httproute.yaml
@@ -340,7 +338,8 @@ kubectl apply -f asm/istio-manifests/gw-frontend.yaml
 次に、Google Cloud の外部 Applicaiton Load Balancer (ALB) 経由で ingress gateway にアクセスできるように Kubernetes の Gateway リソースを構成します。  
 
 ```bash
-kubectl apply -f asm/k8s-gateway/
+kubectl apply -f asm/k8s-gateway/gateway.yaml
+kubectl apply -f asm/k8s-gateway/httproute.yaml
 ```
 
 <walkthrough-info-message>同じような名前が出てきて混乱するかもしれませんが、ALB 等クラスタ外のロードバランサーを構成するのが Kubernetes の Gateway リソースで、Istio の　Ingress / Egress Gateway というコンポーネントを構成するのが Istio の Gateway とここでは理解してください。 (細かい話をすると K8s Gateway でも Istio Ingress/Egress Gateway を構成できますが、ここでは割愛します。)</walkthrough-info-message>
@@ -388,7 +387,7 @@ cat productcatalog-v2.yaml
 ```
 
 ### **2. DestinationRule と VirtualService のデプロイ**
-ASM のリソースである DestinationRule と VirtualService をデプロイし、ProductCatalog v2 には全体の 25 % のみトラフィックを流すように設定します。  
+ASM のリソースである DestinationRule と VirtualService をデプロイし、ProductCatalog v2 には全体の 5 % のみトラフィックを流すように設定します。  
 DestinationRule では `version` ラベルの値を基に、各バージョン (v1, v2) の Subset を定義しています。
 ```yaml:dr-catalog.yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -540,7 +539,6 @@ export REGION1=asia-northeast1
 export CLUSTER_NAME1=gke-tokyo
 export REGION2=asia-northeast2
 export CLUSTER_NAME2=gke-osaka
-export CLUSTER_VERSION=1.26
 ```
 
 ### **2. GKE Autopilot クラスタのデプロイ**
@@ -550,8 +548,7 @@ export CLUSTER_VERSION=1.26
 ```bash
 gcloud container clusters create-auto ${CLUSTER_NAME2} \
     --location=${REGION2} \
-    --release-channel=stable \
-    --cluster-version=${CLUSTER_VERSION}
+    --release-channel=stable 
 ```
 
 ### **3. コンテキストの設定**
@@ -583,10 +580,13 @@ gcloud container fleet memberships list --project ${PROJECT_ID}
 以下のように表示されれば OK です。  
 
 ```text
-gcloud container fleet memberships list --project ${PROJECT_ID}
-NAME             EXTERNAL_ID                           LOCATION
-gke-tokyo        3111cde5-8ede-43fe-9b9b-d81b8c11e65b  asia-northeast1
-gke-osaka        341bbc08-c5ba-4181-befc-466bc807532c  asia-northeast2
+NAME: gke-tokyo
+EXTERNAL_ID: 9fc00540-609f-4738-939f-84a37f89993e
+LOCATION: asia-northeast1
+
+NAME: gke-osaka
+EXTERNAL_ID: 31b95fda-47f5-4236-a80a-ae08e43844f9
+LOCATION: asia-northeast2
 ```
 
 ## Multi-cluster Services (MCS) の有効化
