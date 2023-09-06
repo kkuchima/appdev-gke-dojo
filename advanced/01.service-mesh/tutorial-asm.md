@@ -78,8 +78,6 @@ gcloud services enable mesh.googleapis.com \
   cloudbuild.googleapis.com
 ```
 
-<walkthrough-info-message>GKE クラスタをすでにデプロイしている場合、`container.googleapis.com` の有効化は不要です。</walkthrough-info-message>
-
 **GUI**: [API ライブラリ](https://console.cloud.google.com/apis/library)
 
 ## **マネージド Anthos Service Mesh のプロビジョニング**
@@ -92,21 +90,22 @@ ASM のプロビジョニングは他にも [asmcli](https://cloud.google.com/se
 ### **1. 環境変数・gcloud コマンドの設定**
 
 ```bash
+export REGION1=asia-northeast1
 export CLUSTER_NAME1=gke-tokyo
-export CLUSTER_LOCATION1=asia-northeast1
 
 gcloud container clusters get-credentials ${CLUSTER_NAME1} \
-     --region ${CLUSTER_LOCATION1} 
+     --region ${REGION1} 
 ```
 
 ### **2. クラスタを Fleet に登録する**
 Fleet で GKE クラスタを管理するために、Fleet へ登録します。
 ```bash
 gcloud container fleet memberships register ${CLUSTER_NAME1} \
-  --gke-uri=https://container.googleapis.com/v1/projects/${PROJECT_ID}/locations/${CLUSTER_LOCATION1}/clusters/${CLUSTER_NAME1} \
+  --gke-cluster ${REGION1}/${CLUSTER_NAME1} \
   --enable-workload-identity \
   --project ${PROJECT_ID}
 ```
+
 Fleet にクラスタが登録されていることを確認します。
 ```bash
 gcloud container fleet memberships list --project ${PROJECT_ID}
@@ -117,7 +116,7 @@ GKE クラスタに mesh_id ラベルとして Fleet プロジェクト番号を
 export PROJECT_NUM=`gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)"`
 
 gcloud container clusters update ${CLUSTER_NAME1} \
-  --region ${CLUSTER_LOCATION1} --update-labels mesh_id=proj-${PROJECT_NUM}
+  --region ${REGION1} --update-labels mesh_id=proj-${PROJECT_NUM}
 ```
 
 ### **3. マネージド ASM のプロビジョニング**
@@ -127,7 +126,7 @@ gcloud container fleet mesh update \
     --management automatic \
     --memberships ${CLUSTER_NAME1} \
     --project ${PROJECT_ID} \
-    --location ${CLUSTER_LOCATION1}
+    --location ${REGION1}
 ```
 
 数分後、コントロール プレーンのステータスが ACTIVE になっていることを確認します。
@@ -136,7 +135,7 @@ gcloud container fleet mesh describe --project ${PROJECT_ID}
 ```
 
 以下のように `controlPlaneManagement` が `ACTIVE` になっていることを確認します。
-```
+```text
 membershipSpecs:
   projects/1072516076243/locations/asia-northeast1/memberships/test-ap01:
     mesh:
@@ -246,8 +245,8 @@ shippingservice-58786fbcd4-bvtkq         2/2     Running   0          6m32s
 
 ```bash
 gcloud compute addresses create gatewayip --global --ip-version IPV4
-IP_ADDR=$(gcloud compute addresses list --format='value(ADDRESS)' --filter="NAME:gatewayip")
-DOMAIN="${IP_ADDR//./-}.nip.io"
+export IP_ADDR=$(gcloud compute addresses list --format='value(ADDRESS)' --filter="NAME:gatewayip")
+export DOMAIN="${IP_ADDR//./-}.nip.io"
 
 sed -i "s/x-x-x-x.nip.io/$DOMAIN/g" gateway/httproute.yaml
 ```
@@ -358,193 +357,62 @@ kubectl delete -f dr-catalog.yaml
 ```
 
 ## **mTLS を試す**
+ASM の Mutual TLS (mTLS) 機能を有効化するとサーバ - クライアント間の相互認証により、接続先だけでなく接続元の信頼も保証することができます。  
+また通信を TLS で暗号化することができ、ワークロード間の通信をよりセキュアにすることが可能です。 mTLS で利用する証明書はサイドカープロキシで保持・管理されるため、ワークロードからは透過的に mTLS が利用されます。  
+今回はサービスメッシュ全体で mTLS を有効化し、メッシュ外のワークロードからのアクセスを禁止するように構成します。
 
-## **チャレンジ問題**
+### **現在の mTLS モードを確認する**
+mTLS のモードは 3 種類あります。デフォルトは `Permissive` というモードで、暗号化された通信と平文どちらも許容します。
+- Permissive: 暗号化された通信と平文どちらも許容する (デフォルト)
+- Strict: 暗号化された通信のみ許容する
+- Disable: mTLS を無効化する
 
-### **Python 用拡張機能をプリインストールする**
+適用されている mTLS モードは [Anthos Security ダッシュボード](https://console.cloud.google.com/anthos/security/policy-audit/asia-northeast1/gke-tokyo)から確認することができます。
 
-Python が社内の公式開発言語の１つになっているとします。
-
-ワークステーションの利用ユーザーから Python 用の拡張機能 (ms-python) をプリインストールしておいてほしいと要望があがりました。
-
-今まで学んできたカスタマイズの手順を参考に、作成済みのワークステーション構成 (codeoss-customized) に Python 用拡張機能をプリインストールしてみましょう。
-
-## **本番で Cloud Workstations を利用する**
-
-ここまで Cloud Workstations を開発者、管理者目線から利用する方法を学んできました。
-
-しかし、本番で Cloud Workstations を利用する際に検討、意識すべき事項があります。ここからは以下のようなポイントをそれぞれ説明します。
-
-- 開発者個別にワークステーションを払い出す
-- カスタムコンテナイメージをセキュアに保つ
-- 無駄な費用がかからないようにする
-
-## **開発者個別にワークステーションを払い出す**
-
-<walkthrough-info-message>本手順は作業している Google アカウントとは**別の** Google アカウントを擬似的に開発者のアカウントとして利用します。アカウントがない場合、こちらのステップはスキップしてください</walkthrough-info-message>
-
-### **1. 開発者にどのような権限を与えるか検討する**
-
-権限を制御することで、ワークステーションを開発者にどのように利用させるかを制御することが可能です。
-
-一般的に以下 2 つの提供形態のいずれかが選ばれます。
-
-1. 管理者がワークステーションを払い出し、開発者はそれを利用する
-1. 開発者自身がワークステーションを作成し、利用する
-
-本ステップでは `1. 管理者がワークステーションを払い出し、開発者はそれを利用する` の手順を説明します。`2. 開発者自身がワークステーションを作成し、利用する` を試す場合は次のステップに進んでください。
-
-### **2. 専用のカスタムロールを作成する**
-
-開発者がワークステーションを削除できないようにするためには、専用のカスタムロールが必要です。
-
-```shell
-cat << EOF > workstationDeveloper.yaml
-title: "Workstations Developer"
-description: "Developer who only uses workstations"
-stage: "GA"
-includedPermissions:
-- workstations.operations.get
-- workstations.workstations.get
-- workstations.workstations.start
-- workstations.workstations.stop
-- workstations.workstations.update
-- workstations.workstations.use
-EOF
-gcloud iam roles create workstationDeveloper \
-  --project ${PROJECT_ID} \
-  --file workstationDeveloper.yaml
-```
-
-### **2. 開発者に作成したカスタムロールを付与する**
-
-こちらは GUI から設定します。
-
-1. Cloud Workstations の UI にアクセスします。
-1. `ワークステーション` をクリックします。
-1. 一覧から `ws-customized` をクリックします。
-1. 上のメニューから `ADD USERS` をクリックします。
-1. 新しいプリンシパルに開発者のメールアドレスを入力します。
-1. ロールにカスタム -> `Workstations Developer` を選択します。
-1. `保存` ボタンをクリックします。
-
-### **3. 開発者に Cloud Workstations Operation 閲覧者 の権限を付与する**
-
-`test-developer@gmail.com` を開発者アカウントのメールアドレスに置き換えて実行してください。
-
+### **Sleep Pod のデプロイ**
+sleep というサービスメッシュ外の Namespace 上に Pod をデプロイし、メッシュ外からのアクセスの挙動を確認します。
 ```bash
-gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-  --member "user:test-developer@gmail.com" \
-  --role "roles/workstations.operationViewer"
+kubectl create ns sleep
+kubectl apply -f mtls/sleep.yaml
 ```
 
-### **4. (開発者) ワークステーションの管理コンソールにアクセスする**
-
-下記コマンドで出力された URL に **開発者アカウント** でアクセスします。
-
+Sleep pod から Frontend サービスへ正常にアクセスできることを確認します。(ステータスコード 200 が返ってくる)
 ```bash
-echo "https://console.cloud.google.com/workstations/list?project=$PROJECT_ID"
+export SLEEP_POD=$(kubectl get pod -n sleep -l app=sleep -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n sleep -c sleep $SLEEP_POD -- curl -sS frontend.default -o /dev/null -s -w '%{http_code}\n'
+# 想定される出力：
+# 200
 ```
 
-先程権限を付与したワークステーションのみが見え、以下の操作ができれば問題なく設定ができています。
+### **mTLS を適用する**
+`PeerAuthentication` リソースで mTLS を STRICT mode で適用します。  
+デフォルトの構成では対象 Namespace を `istio-system` にすることで、サービスメッシュ全体に対して mTLS を STRICT mode で設定することができます。
+```yaml:mtls-meshwide.yaml
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: mesh-wide
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT
+```
 
-- 起動
-- 停止
-
-管理者は本手順を繰り返すことで、開発者に安全にワークステーションを利用させることができます。
-
-## **開発者自身がワークステーションを作成し、利用する**
-
-### **1. 開発者に Cloud Workstations 作成者 の権限を付与する**
-
-こちらは GUI から設定します。
-
-1. Cloud Workstations の UI にアクセスします。
-1. `ワークステーションの構成` をクリックします。
-1. 一覧から `codeoss-customized` をクリックします。
-1. 上のメニューから `ADD USERS` をクリックします。
-1. 新しいプリンシパルに開発者のメールアドレスを入力します。
-1. ロールが `Cloud Workstations Creator` になっていることを確認します。
-1. `保存` ボタンをクリックします。
-
-### **2. 開発者に Cloud Workstations Operation 閲覧者 の権限を付与する**
-
-`test-developer@gmail.com` を開発者アカウントのメールアドレスに置き換えて実行してください。
-
+以下コマンドを実行しサービスメッシュ全体に mTLS STRICT mode を適用します。
 ```bash
-gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-  --member "user:test-developer@gmail.com" \
-  --role "roles/workstations.operationViewer"
+kubectl apply -f mtls/mtls-meshwide.yaml
 ```
 
-### **3. (開発者) ワークステーションの管理コンソールにアクセスする**
+### **STRICT mode の確認**
+[Anthos Security ダッシュボード](https://console.cloud.google.com/anthos/security/policy-audit/asia-northeast1/gke-tokyo)上でサンプル アプリケーションの mTLS mode が STRICT になっていることを確認します。  
 
-下記コマンドで出力された URL に **開発者アカウント** でアクセスします。
-
+Sleep pod から Frontend サービスへアクセスすると STRICT mode により平文でのアクセスがエラーとなることを確認します。
 ```bash
-echo "https://console.cloud.google.com/workstations/list?project=$PROJECT_ID"
+export SLEEP_POD=$(kubectl get pod -n sleep -l app=sleep -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n sleep -c sleep $SLEEP_POD -- curl -sS frontend.default -o /dev/null -s -w '%{http_code}\n'
+# 想定される出力：
+# curl: (56) Recv failure: Connection reset by peer
 ```
-
-### **4. (開発者) ワークステーションを作成、アクセスする**
-
-1. `+ 作成` をクリックします。
-1. `名前` に `ws-developer` と入力します。
-
-   ```shell
-   ws-developer
-   ```
-
-1. `Configuration` から `codeoss-customized` を選択します。
-1. `作成` をクリックします。
-1. 作成が完了したら、`START`, `LAUNCH` からアクセスできることを確認します。
-
-管理者は本手順を繰り返すことで、開発者に安全にワークステーションを利用させることができます。
-
-## **カスタムコンテナイメージをセキュアに保つ**
-
-カスタムコンテナイメージをセキュアに保つには、定期的にビルドをし直す必要があります。
-
-Google が提供している [事前構成されたベースイメージ](https://cloud.google.com/workstations/docs/preconfigured-base-images?hl=ja) は、定期的にセキュリティ更新を含むアップデートが行われています。
-
-そのため、これらのイメージ (の latest) をそのまま使い続ける場合、ワークステーションが停止、起動するときに自動的に最新のイメージが使われます。
-
-しかし、今回行った手順のように、コンテナをカスタマイズした場合、ビルドした段階でのベースイメージで固定されてしまうため、カスタムイメージも定期的にビルド (ベースイメージの更新を取り込む) 必要があります。
-
-詳細は [コンテナ イメージの再ビルドを自動化してベースイメージの更新を同期する](https://cloud.google.com/workstations/docs/tutorial-automate-container-image-rebuild?hl=ja) を参照してください。
-
-## **無駄な費用がかからないようにする**
-
-ワークステーション構成を見直すことで、トータルのコストをおさえる事が可能です。
-
-ここではいくつか有用な設定を示します。
-
-**参考**: [開発環境をカスタマイズする](https://cloud.google.com/workstations/docs/customize-workstation-configurations?hl=ja)
-
-### **1. 仮想マシンのタイプ**
-
-ワークステーション構成作成後に**更新可能**です。
-
-利用可能な仮想マシンタイプは [使用可能なマシンタイプ](https://cloud.google.com/workstations/docs/available-machine-types?hl=ja) を参照してください。
-
-### **2. ブートディスクのサイズ**
-
-**注**: ワークステーション構成作成後は**更新できません**。
-
-ブートディスクのサイズです。デフォルトは 50GB で、最小で 30GB の指定が可能です。
-
-### **3. 永続ディスクのタイプ、サイズ**
-
-**注**: ワークステーション構成作成後は**更新できません**。
-
-永続ディスク (ホームディレクトリ) のディスクタイプ、サイズです。デフォルトは `pd-standard` タイプ、`200GB` が指定されています。
-
-200GB 未満に指定するときは、ディスクタイプに `pd-balanced`, `pd-ssd` のいずれかを指定しなければなりません。
-
-### **4. アイドル時の自動停止時間**
-
-ワークステーション構成作成後に**更新可能**です。
-
-ワークステーションが一定時間アイドル状態になったときに、自動的にストップする機能があります。デフォルトで `20分 (1200s)` が設定されています。
 
 ## **Congraturations!**
 
