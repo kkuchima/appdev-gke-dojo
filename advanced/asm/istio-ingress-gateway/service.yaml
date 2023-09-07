@@ -18,8 +18,8 @@ metadata:
   labels:
     app: istio-ingressgateway
     istio: ingressgateway
-  annotations:
-    cloud.google.com/neg: '{"exposed_ports": {"80":{}}}'
+#  annotations:
+#    cloud.google.com/neg: '{"exposed_ports": {"80":{}}}'
 spec:
   ports:
   # status-port exposes a /healthz/ready endpoint that can be used with GKE Ingress health checks
@@ -35,4 +35,4 @@ spec:
   selector:
     istio: ingressgateway
     app: istio-ingressgateway
-  type: ClusterIP
+  type: LoadBalancer
