@@ -871,6 +871,50 @@ kubectl apply -f mcgw/manifests/external-http-gateway.yaml --context ${CLUSTER_N
 kubectl apply -f mcgw/manifests/public-store-route.yaml    --context ${CLUSTER_NAME1}
 ```
 
+適用した Multi-cluster Gateway のリソースは以下です(一部省略)。  
+`/tokyo` の場合は `gke-tokyo` へ、`/osaka` の場合は `gke-osaka` へトラフィックが流れるように設定しています。  
+
+```yaml
+kind: HTTPRoute
+apiVersion: gateway.networking.k8s.io/v1beta1
+metadata:
+  name: public-store-route
+~~~
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /tokyo
+    backendRefs:
+    - group: net.gke.io
+      kind: ServiceImport
+      name: store-tokyo
+      port: 8080
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /osaka
+    backendRefs:
+      - group: net.gke.io
+        kind: ServiceImport
+        name: store-osaka
+        port: 8080
+  - matches:
+    - headers:
+      - name: env
+        value: canary
+    backendRefs:
+      - group: net.gke.io
+        kind: ServiceImport
+        name: store-osaka
+        port: 8080
+  - backendRefs:
+    - group: net.gke.io
+      kind: ServiceImport
+      name: store
+      port: 8080
+```
+
 正常にリソースがデプロイできているか確認します。  
 
 ```bash
@@ -970,11 +1014,9 @@ curl -H "env: canary" http://${MC_DOMAIN}
 
 ユースケースとしては、ヘッダーベースルーティングと同様にクラスタの Blue/Green アップグレードをした際などに、全体トラフィックの数%のみを新バージョンのクラスタに流すことでアップグレードによるリスクを低減すること等が考えられます。   
 
-今回は `env: canary` という HTTP ヘッダが付与されているものは `gke-osaka` にルーティングされるように HTTPRoute リソースを構成します。  
-
 ### **1. HTTPRoute の構成**
 
-以下のように `env: canary` という HTTP ヘッダが付与されているものは `gke-osaka` にルーティングする HTTPRoute リソースを適用して挙動を確認します。  
+以下のように全体トラフィックの 90% を`gke-tokyo` に、残りの 10% を `gke-osaka` にルーティングする HTTPRoute リソースを適用して挙動を確認します。  
 
 ```yaml
   - backendRefs:
