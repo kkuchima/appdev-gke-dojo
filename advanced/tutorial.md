@@ -1016,7 +1016,7 @@ curl -H "env: canary" http://${MC_DOMAIN}
 
 ### **1. HTTPRoute の構成**
 
-以下のように `env: canary` という HTTP ヘッダが付与されているものは `gke-osaka` にルーティングする HTTPRoute リソースを適用して挙動を確認します。  
+以下のように全体トラフィックの 90% を`gke-tokyo` に、残りの 10% を `gke-osaka` にルーティングする HTTPRoute リソースを適用して挙動を確認します。  
 
 ```yaml
   - backendRefs:
