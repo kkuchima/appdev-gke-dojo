@@ -200,7 +200,6 @@ gcloud container clusters update ${CLUSTER_NAME1} \
 ### **3. マネージド ASM のプロビジョニング**
 
 Fleet 経由でマネージド ASM をプロビジョニングします。  
-（プロビジョニング完了まで数分かかります）
 
 ```bash
 gcloud container fleet mesh update \
@@ -209,13 +208,13 @@ gcloud container fleet mesh update \
     --project ${PROJECT_ID} \
     --location ${REGION1}
 ```
-
-数分後、コントロール プレーンのステータスが ACTIVE になっていることを確認します。
+  
+約10分後、コントロール プレーンのステータスが ACTIVE になっていることを確認します。
 
 ```bash
 gcloud container fleet mesh describe --project ${PROJECT_ID}
 ```
-
+  
 以下のように `controlPlaneManagement` と `dataPlaneManagement` が `ACTIVE` になることを確認します。  
 プロビジョニングが完了するまで数分かかります。  
 
@@ -265,7 +264,9 @@ kubectl apply -n gateway -f asm/istio-ingress-gateway/
 kubectl get pods -n gateway -w
 ```
 
-以下のように STATUS が `Running` となっていれば OK です。
+以下のように STATUS が `Running` となっていれば OK です。  
+Running となりましたら `Control + c` で watch を終了してください。  
+
 ```text
 NAME                                    READY   STATUS    RESTARTS   AGE
 istio-ingressgateway-7d99cdb85d-56r4j   1/1     Running   0          26h
@@ -287,10 +288,12 @@ kubectl apply -f asm/sample-online-boutique/
 ```bash
 kubectl get pods -w
 ```
-
+  
 以下のように Pod の STATUS が `Running` となっていること、またコンテナの数 (READY の下) が `2/2` と表示されていることを確認します。  
 
 アプリケーション コンテナとサイドカー合わせて 2 つのコンテナが立ち上がっていることが確認できます。  
+
+全て Running となりましたら `Control + c` で watch を終了してください。  
 
 ```text
 kubectl get pods
@@ -310,22 +313,7 @@ shippingservice-58786fbcd4-bvtkq         2/2     Running   0          6m32s
 
 ## **Ingress Gateway 経由でアプリケーションを公開する**
 
-### **1. 外部公開用の IP アドレスを取得する**
-外部公開用の IP アドレスを事前に確保します。  
-また、本ハンズオンでアプリケーションの公開に使用するドメインとして `nip.io` を利用します。  
-`nip.io` はサブドメインに記載した任意の IP アドレスに合わせたレコードを返す DNS サービスです。  
-
-今回はこのサービスを利用して、簡易的にドメインを用意します。 本番環境においては、別途ドメインを用意して利用ください。  
-
-```bash
-gcloud compute addresses create gatewayip --global --ip-version IPV4
-export IP_ADDR=$(gcloud compute addresses list --format='value(ADDRESS)' --filter="NAME:gatewayip")
-export DOMAIN="${IP_ADDR//./-}.nip.io"
-
-sed -i "s/x-x-x-x.nip.io/$DOMAIN/g" asm/k8s-gateway/httproute.yaml
-```
-
-### **2. Istio Gateway リソースの適用**
+### **1. Istio Gateway リソースの適用**
 
 Istio の Gateway リソースを適用し、ingress gateway 経由でサンプルアプリケーションを公開できるようにします。  
 
@@ -333,24 +321,20 @@ Istio の Gateway リソースを適用し、ingress gateway 経由でサンプ�
 kubectl apply -f asm/istio-manifests/gw-frontend.yaml
 ```
 
-### **3. Kubernetes Gateway リソースの適用**
+### **2. サンプルアプリケーションへのアクセス**
+  
+プロビジョニングされたロードバランサーの外部IPアドレスを取得します。  
+以下コマンドをコピーし、ターミナルに貼り付けて実行してください。  
 
-次に、Google Cloud の外部 Applicaiton Load Balancer (ALB) 経由で ingress gateway にアクセスできるように Kubernetes の Gateway リソースを構成します。  
-
-```bash
-kubectl apply -f asm/k8s-gateway/gateway.yaml
-kubectl apply -f asm/k8s-gateway/httproute.yaml
+```text
+export IP_ADDR=`kubectl get svc istio-ingressgateway -n gateway -o jsonpath="{.status.loadBalancer.ingress[*].ip}"`
 ```
-
-<walkthrough-info-message>同じような名前が出てきて混乱するかもしれませんが、ALB 等クラスタ外のロードバランサーを構成するのが Kubernetes の Gateway リソースで、Istio の　Ingress / Egress Gateway というコンポーネントを構成するのが Istio の Gateway とここでは理解してください。 (細かい話をすると K8s Gateway でも Istio Ingress/Egress Gateway を構成できますが、ここでは割愛します。)</walkthrough-info-message>
-
-### **4. サンプルアプリケーションへのアクセス**
-
+  
 以下コマンドを実行し、表示された URL にアクセスしてみましょう。Ingress Gateway 経由でサンプルアプリケーションにアクセスできるようになっています。  
-ALB のプロビジョニングに時間がかかるため、アクセスできない場合は数分待ってから再度お試しください。  
+LB のプロビジョニングに時間がかかるため、アクセスできない場合は数分待ってから再度お試しください。  
 
 ```bash
-echo http://${DOMAIN}
+echo http://${IP_ADDR}
 ```
 
 何回かサンプルアプリケーションにアクセスした後、 [ASM トポロジービュー](https://console.cloud.google.com/anthos/services)でサービスメッシュのトポロジーを確認することができます。
@@ -439,7 +423,7 @@ kubectl apply -f asm/istio-manifests/vs-split-traffic.yaml
 少し分かりにくいですが、商品画像をクリックするとたまに遅延が発生するようになっています。  
 
 ```bash
-echo http://${DOMAIN}
+echo http://${IP_ADDR}
 ```
 
 変化が確認できたら VirtualService と DestinationRule を削除しましょう。  
