@@ -125,7 +125,7 @@ gcloud container clusters create-auto ${CLUSTER_NAME1} \
 ### **1. チュートリアル資材があるディレクトリに移動する**
 
 ```bash
-cd ~/gcp-getting-started-lab-jp/gke-advanced/
+cd ~/appdev-gke-dojo/advanced/
 ```
 
 ### **2. チュートリアルを開く**
@@ -1028,5 +1028,5 @@ gcloud projects delete ${PROJECT_ID}
 ### **3. ハンズオン資材の削除**
 
 ```bash
-cd $HOME && rm -rf gcp-getting-started-lab-jp/advanced
+cd $HOME && rm -rf appdev-gke-dojo/advanced/
 ```
