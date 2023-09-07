@@ -7,7 +7,7 @@ Anthos Service Mesh のハンズオンでは、サービスメッシュを使っ
 - 重みづけルーティングを利用したカナリアリリース
 - mTLS によるサービス間通信の暗号化・相互認証
 
-Multi-cluster Gateway のハンズオンでは、サービスメッシュを使った以下機能を体験します。
+Multi-cluster Gateway のハンズオンでは、Multi-cluster Gateway を使って複数リージョンにデプロイした GKE クラスタ間の高度なトラフィックルーティングを行う方法を体験します。
 - クラスタ間のパスベース・レイテンシーベース ルーティング
 - クラスタ間のヘッダベース ルーティング
 - 重みづけトラフィック ルーティングによるクラスタ間のカナリアリリース
@@ -146,6 +146,25 @@ export PROJECT_ID=testproject
 
 ```bash
 gcloud config set project ${PROJECT_ID}
+```
+
+### **5. 環境変数の設定**
+
+環境構築に必要となる環境変数を設定します。 
+
+以下コマンドをコピーし、ターミナルに貼り付けて実行してください。  
+
+```
+export PROJECT_NUM=`gcloud projects describe ${PROJECT_ID} --format="value(projectNumber)"`
+```
+
+以下コマンドを実行してください。  
+
+```bash
+export REGION1=asia-northeast1
+export CLUSTER_NAME1=gke-tokyo
+export REGION2=asia-northeast2
+export CLUSTER_NAME2=gke-osaka
 ```
 
 途中まで進めていたチュートリアルのページまで `Next` ボタンを押し、進めてください。
@@ -1012,5 +1031,5 @@ gcloud projects delete ${PROJECT_ID}
 ### **3. ハンズオン資材の削除**
 
 ```bash
-cd $HOME && rm -rf appdev-gke-dojo/advanced/
+cd $HOME && rm -rf appdev-gke-dojo/
 ```
