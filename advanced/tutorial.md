@@ -99,7 +99,8 @@ gcloud services enable mesh.googleapis.com \
 - サービス：Compute Engine API
 - 割り当て: CPUs
 - region:asia-northeast1
-  
+
+![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase0.png?raw=true)
 
 **region : asia-northeast1** というタグがついた **Compute Engine API** の **CPUs** にチェックマークを入れ、コンソール右上にある**割り当てを編集**をクリックします。 
 
