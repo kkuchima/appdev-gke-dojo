@@ -95,18 +95,19 @@ gcloud services enable mesh.googleapis.com \
 ハンズオンで利用するコンピュートリソースがデフォルトのクォータを超える可能性があるため、事前に上限を緩和します。  
 
 [プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas)にアクセスします。  
+画面中部のフィルタで「サービス：Compute Engine API」、「割り当て: CPUs」、「region:asia-northeast1」と選択します。  
 
 **region : asia-northeast1** というタグがついた **Compute Engine API** の **CPUs** にチェックマークを入れ、コンソール右上にある**割り当てを編集**をクリックします。 
 
-![](images/quota_increase1.png)
+![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase1.png)
 
 **新しい上限**に **48** と入力し、**リクエストの説明**に「ハンズオン実施のため」等コメントをいれていただき、**次へ**をクリックします。(既に 48 以上の数値が入力されている場合は本手順はスキップしてください)  
 
-![](images/quota_increase2.png)
+![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase2.png)
 
 連絡先の内容を確認のうえ、**リクエストを送信**をクリックし上限申請を行います。申請は自動で承認されます。
 
-![](images/quota_increase3.png)
+![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase3.png)
 
 ## **GKE Autopilot クラスタのデプロイ**
 まず最初に本ハンズオンで利用する GKE Autopilot クラスタを構築します。
