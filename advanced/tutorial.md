@@ -115,7 +115,8 @@ GKE Autoulot クラスタ `gke-tokyo` をデプロイします。デプロイ完
 ```bash
 gcloud container clusters create-auto ${CLUSTER_NAME1} \
     --location=${REGION1} \
-    --release-channel=stable
+    --release-channel=stable \
+    --enable-private-nodes
 ```
 
 ## **参考: Cloud Shell の接続が途切れてしまったときは?**
@@ -468,7 +469,7 @@ mTLS のモードは 3 種類あります。デフォルトは `Permissive` と�
 - Strict: 暗号化された通信のみ許容する
 - Disable: mTLS を無効化する
 
-適用されている mTLS モードは [Anthos Security ダッシュボード](https://console.cloud.google.com/anthos/security/policy-audit/asia-northeast1/gke-tokyo)から確認することができます。  
+適用されている mTLS モードは [Anthos Security ダッシュボード](https://console.cloud.google.com/anthos/security/policy-audit/asia-northeast1/gke-tokyo)の**ポリシー監査タブ**から確認することができます。  
 
 ### **2. Sleep Pod のデプロイ**
 
@@ -511,7 +512,7 @@ kubectl apply -f asm/mtls/mtls-meshwide.yaml
 
 ### **STRICT mode の確認**
 
-[Anthos Security ダッシュボード](https://console.cloud.google.com/anthos/security/policy-audit/asia-northeast1/gke-tokyo)上でサンプル アプリケーションの mTLS mode が STRICT になっていることを確認します。  
+[Anthos Security ダッシュボード](https://console.cloud.google.com/anthos/security/policy-audit/asia-northeast1/gke-tokyo)の**ポリシー監査タブ**上でサンプル アプリケーションの mTLS mode が STRICT になっていることを確認します。  
 
 また、Sleep pod から Frontend サービスへアクセスすると STRICT mode により平文でのアクセスがエラーとなることを確認します。  
 
@@ -551,7 +552,8 @@ export CLUSTER_NAME2=gke-osaka
 ```bash
 gcloud container clusters create-auto ${CLUSTER_NAME2} \
     --location=${REGION2} \
-    --release-channel=stable 
+    --release-channel=stable \
+    --enable-private-nodes
 ```
 
 ### **3. コンテキストの設定**
@@ -935,6 +937,8 @@ public-store-route   ["34-160-250-20.nip.io"]   14m
 
 Gateway リソースが正常に構成されていることを確認できたら、以下コマンドを実行し　Multi-cluster Gateway で公開されたサンプルアプリケーションにアクセスしてみましょう。  
 
+`curl: (52) Empty reply from server` 等のエラーが返ってくる場合は Load Balancer への反映ができていない可能性があるため、数分待機した後に再度お試しください。  
+
 ```bash
 curl http://${MC_DOMAIN}/tokyo
 ```
@@ -952,15 +956,12 @@ curl http://${MC_DOMAIN}
 また、パスを指定しない場合は Multi-cluster Gateway のデフォルトの動きとして、クライアントから地理的に近い（レイテンシーが低い）クラスタにルーティングされます。  
 クライアントが東京にある場合は `gke-tokyo` が優先され、大阪にあるクライアントからは `gke-osaka` が優先されるはずです。  
 
-```text
-curl http://${MC_DOMAIN}/tokyo
-{"cluster_name":"gke-tokyo","gce_instance_id":"4721284863869288114","gce_service_account":"kkuchima-sandbox.svc.id.goog","host_header":"34-160-250-20.nip.io","pod_name":"store-5c65bdf74f-mnk8f","pod_name_emoji":"\ud83c\udff5","project_id":"kkuchima-sandbox","timestamp":"2023-09-06T04:33:55","zone":"asia-northeast1-a"}
+Cloud Shell はインターネット上の1つの VM であるため、東京からアクセスしているつもりでも `gke-osaka` にアクセスする場合があります。  
+その場合は以下のコマンドで表示される URL にアクセスし、ブラウザを開いている物理的な端末 (PC) からアクセスしたときの挙動も確認してみましょう。  
+東京からアクセスしている場合は `gke-tokyo` にアクセスされると思います。  
 
-curl http://${MC_DOMAIN}/osaka
-{"cluster_name":"gke-osaka","gce_instance_id":"702247582886946019","gce_service_account":"kkuchima-sandbox.svc.id.goog","host_header":"34-160-250-20.nip.io","pod_name":"store-5dbdf67f49-5jl8g","pod_name_emoji":"\ud83c\udde6\ud83c\uddf8","project_id":"kkuchima-sandbox","timestamp":"2023-09-06T04:34:10","zone":"asia-northeast2-b"}
-
-curl http://${MC_DOMAIN}
-{"cluster_name":"gke-tokyo","gce_instance_id":"4721284863869288114","gce_service_account":"kkuchima-sandbox.svc.id.goog","host_header":"34-160-250-20.nip.io","pod_name":"store-5c65bdf74f-lghk6","pod_name_emoji":"\u270c\ufe0f","project_id":"kkuchima-sandbox","timestamp":"2023-09-06T04:34:15","zone":"asia-northeast1-a"}
+```bash
+echo http://${MC_DOMAIN}
 ```
 
 ## **ヘッダーベースのルーティング**
@@ -1040,10 +1041,11 @@ kubectl apply -f mcgw/manifests/public-store-route-canary.yaml --context ${CLUST
 
 以下のコマンドを実行し 10 回程度 URL にアクセスし挙動を確認します。(Contorl + C でループを止めることができます)  
 
-全体の約 90% が`gke-tokyo` に残りの 10% 程度が `gke-osaka` にルーティングされるはずです。反映まで少し時間がかかる可能性があるので、想定通りの挙動とならない場合は少し待って再度ためしてみてください。  
+全体の約 90% が`gke-tokyo` に残りの 10% 程度が `gke-osaka` にルーティングされるはずです。  
+反映まで少し時間がかかる可能性があるので、想定通りの挙動とならない場合は少し待って再度ためしてみてください。  
 
 ```bash
-while true; do curl http://${MC_DOMAIN} | grep "cluster_name"; sleep 1; done
+while true; do curl -s http://${MC_DOMAIN} | grep "cluster_name"; sleep 1; done
 ```
 
 ## **Congraturations!**
