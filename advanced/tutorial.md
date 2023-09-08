@@ -73,6 +73,7 @@ gcloud config set project ${PROJECT_ID}
 
 ## **Google Cloud 環境設定**
 
+### **1. API の有効化**
 Google Cloud では利用したい機能（API）ごとに、有効化を行う必要があります。
 
 ここでは、以降のハンズオンで利用する機能を事前に有効化しておきます。
@@ -89,6 +90,23 @@ gcloud services enable mesh.googleapis.com \
 ```
 
 **GUI**: [API ライブラリ](https://console.cloud.google.com/apis/library)
+
+### **2. クォータ (割り当て上限) の緩和**
+ハンズオンで利用するコンピュートリソースがデフォルトのクォータを超える可能性があるため、事前に上限を緩和します。  
+
+[プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas)にアクセスします。  
+
+**region : asia-northeast1** というタグがついた **Compute Engine API** の **CPUs** にチェックマークを入れ、コンソール右上にある**割り当てを編集**をクリックします。 
+
+![](images/quota_increase1.png)
+
+**新しい上限**に **48** と入力し、**リクエストの説明**に「ハンズオン実施のため」等コメントをいれていただき、**次へ**をクリックします。(既に 48 以上の数値が入力されている場合は本手順はスキップしてください)  
+
+![](images/quota_increase2.png)
+
+連絡先の内容を確認のうえ、**リクエストを送信**をクリックし上限申請を行います。申請は自動で承認されます。
+
+![](images/quota_increase3.png)
 
 ## **GKE Autopilot クラスタのデプロイ**
 まず最初に本ハンズオンで利用する GKE Autopilot クラスタを構築します。
