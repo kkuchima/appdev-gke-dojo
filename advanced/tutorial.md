@@ -94,8 +94,12 @@ gcloud services enable mesh.googleapis.com \
 ### **2. クォータ (割り当て上限) の緩和**
 ハンズオンで利用するコンピュートリソースがデフォルトのクォータを超える可能性があるため、事前に上限を緩和します。  
 
-[プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas)にアクセスします。  
-画面中部のフィルタで「サービス：Compute Engine API」、「割り当て: CPUs」、「region:asia-northeast1」と選択します。  
+[プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas) (IAM と管理＞割り当て) にアクセスします。  
+画面中部のフィルタで以下内容を選択・入力します：
+- サービス：Compute Engine API
+- 割り当て: CPUs
+- region:asia-northeast1
+  
 
 **region : asia-northeast1** というタグがついた **Compute Engine API** の **CPUs** にチェックマークを入れ、コンソール右上にある**割り当てを編集**をクリックします。 
 
