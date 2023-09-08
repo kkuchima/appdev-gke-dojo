@@ -94,7 +94,7 @@ gcloud services enable mesh.googleapis.com \
 ### **2. クォータ (割り当て上限) の緩和**
 ハンズオンで利用するコンピュートリソースがデフォルトのクォータを超える可能性があるため、事前に上限を緩和します。  
 
-[プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas) (IAM と管理＞割り当て) にアクセスします。  
+[プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas?hl=ja&pageState=(%22allQuotasTable%22:(%22f%22:%22%255B%257B_22k_22_3A_22_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22region_3Aasia-northeast1_5C_22_22_2C_22s_22_3Atrue%257D_2C%257B_22k_22_3A_22%25E3%2582%25B5%25E3%2583%25BC%25E3%2583%2593%25E3%2582%25B9_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22Compute%2520Engine%2520API_5C_22_22_2C_22s_22_3Atrue_2C_22i_22_3A_22serviceTitle_22%257D_2C%257B_22k_22_3A_22%25E5%2589%25B2%25E3%2582%258A%25E5%25BD%2593%25E3%2581%25A6_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22CPUs_5C_22_22_2C_22i_22_3A_22displayName_22%257D%255D%22,%22s%22:%5B(%22i%22:%22currentPercent%22,%22s%22:%221%22),(%22i%22:%22effectiveLimit%22,%22s%22:%221%22),(%22i%22:%22sevenDayPeakPercent%22,%22s%22:%220%22),(%22i%22:%22currentUsage%22,%22s%22:%221%22),(%22i%22:%22sevenDayPeakUsage%22,%22s%22:%220%22),(%22i%22:%22serviceTitle%22,%22s%22:%220%22),(%22i%22:%22displayName%22,%22s%22:%220%22),(%22i%22:%22displayDimensions%22,%22s%22:%220%22)%5D))) (IAM と管理＞割り当て) にアクセスします。  
 画面中部のフィルタで以下内容を選択・入力します：
 - サービス：Compute Engine API
 - 割り当て: CPUs
