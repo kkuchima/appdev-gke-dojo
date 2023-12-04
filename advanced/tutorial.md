@@ -6,6 +6,7 @@
 Anthos Service Mesh のハンズオンでは、サービスメッシュを使った以下機能を体験します。
 - 重みづけルーティングを利用したカナリアリリース
 - mTLS によるサービス間通信の暗号化・相互認証
+- Authorization Policy による認可設定
 
 Multi-cluster Gateway のハンズオンでは、Multi-cluster Gateway を使って複数リージョンにデプロイした GKE クラスタ間の高度なトラフィックルーティングを行う方法を体験します。
 - クラスタ間のパスベース・レイテンシーベース ルーティング
@@ -230,7 +231,7 @@ gcloud container fleet mesh update \
     --location ${REGION1}
 ```
   
-約10分後、コントロール プレーンのステータスが ACTIVE になっていることを確認します。
+約15分後、コントロール プレーンのステータスが ACTIVE になっていることを確認します。
 
 ```bash
 gcloud container fleet mesh describe --project ${PROJECT_ID}
@@ -450,6 +451,7 @@ echo http://${IP_ADDR}
 ```bash
 kubectl delete -f asm/istio-manifests/dr-catalog.yaml
 kubectl delete -f asm/istio-manifests/vs-split-traffic.yaml
+kubectl delete -f asm/istio-manifests/productcatalog-v2.yaml
 ```
 
 ## **mTLS を試す**
@@ -526,10 +528,12 @@ curl: (56) Recv failure: Connection reset by peer
 ```
 
 ## **Authorization Policy の適用**
+Authorization Policy という機能を使うことで、L7 レイヤでマイクロサービス間の認可設定を行うことができるようになります。  
+
+今回は `currencyservice` に対して Authorization Policy を設定し、必要最低限のサービスからのみアクセスを許可するように設定します。  
 
 ### **1. Deny All ポリシーの適用**
 まず `currencyservice` に対して、Deny All のポリシーを適用し、どのサービスからも `currencyservice` に対してアクセスができないように設定します。  
-
 
 ```yaml:authz-currency-deny-all.yaml
 apiVersion: security.istio.io/v1beta1
@@ -545,10 +549,10 @@ spec:
 以下コマンドを実行し `currencyservice` に対して Deny All ポリシーを適用します。  
 
 ```bash
-kubectl apply -f asm/mtls/authz-currency-deny-all.yaml
+kubectl apply -f asm/istio-manifests/authz-currency-deny-all.yaml
 ```
 
-適用後、以下コマンドを実行し表示された URL に再度アクセスしてみましょう。  
+適用後、Online Boutique にアクセスしてみます。以下コマンドを実行し表示された URL に再度アクセスしてみましょう。  
 
 ```bash
 echo http://${IP_ADDR}
@@ -587,7 +591,7 @@ spec:
 以下コマンドを実行し `currencyservice` に対して Allow ポリシーを適用します。  
 
 ```bash
-kubectl apply -f asm/mtls/authz-allow-frontend.yaml
+kubectl apply -f asm/istio-manifests/authz-allow-frontend.yaml
 ```
 
 再度 Online Boutique にアクセスしてみましょう。Allow Policy によりアクセス可能となっていることが確認できます。  
