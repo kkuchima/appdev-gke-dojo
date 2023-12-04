@@ -91,29 +91,6 @@ gcloud services enable mesh.googleapis.com \
 
 **GUI**: [API ライブラリ](https://console.cloud.google.com/apis/library)
 
-### **2. クォータ (割り当て上限) の緩和**
-ハンズオンで利用するコンピュートリソースがデフォルトのクォータを超える可能性があるため、事前に上限を緩和します。  
-
-[プロジェクトの割り当て](https://console.cloud.google.com/iam-admin/quotas?hl=ja&pageState=(%22allQuotasTable%22:(%22f%22:%22%255B%257B_22k_22_3A_22_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22region_3Aasia-northeast1_5C_22_22_2C_22s_22_3Atrue%257D_2C%257B_22k_22_3A_22%25E3%2582%25B5%25E3%2583%25BC%25E3%2583%2593%25E3%2582%25B9_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22Compute%2520Engine%2520API_5C_22_22_2C_22s_22_3Atrue_2C_22i_22_3A_22serviceTitle_22%257D_2C%257B_22k_22_3A_22%25E5%2589%25B2%25E3%2582%258A%25E5%25BD%2593%25E3%2581%25A6_22_2C_22t_22_3A10_2C_22v_22_3A_22_5C_22CPUs_5C_22_22_2C_22i_22_3A_22displayName_22%257D%255D%22,%22s%22:%5B(%22i%22:%22currentPercent%22,%22s%22:%221%22),(%22i%22:%22effectiveLimit%22,%22s%22:%221%22),(%22i%22:%22sevenDayPeakPercent%22,%22s%22:%220%22),(%22i%22:%22currentUsage%22,%22s%22:%221%22),(%22i%22:%22sevenDayPeakUsage%22,%22s%22:%220%22),(%22i%22:%22serviceTitle%22,%22s%22:%220%22),(%22i%22:%22displayName%22,%22s%22:%220%22),(%22i%22:%22displayDimensions%22,%22s%22:%220%22)%5D))) (IAM と管理＞割り当て) にアクセスします。  
-画面中部のフィルタで以下内容を選択・入力します：
-- サービス：Compute Engine API
-- 割り当て: CPUs
-- region:asia-northeast1
-
-![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase0.png?raw=true)
-
-**region : asia-northeast1** というタグがついた **Compute Engine API** の **CPUs** にチェックマークを入れ、コンソール右上にある**割り当てを編集**をクリックします。 
-
-![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase1.png?raw=true)
-
-**新しい上限**に **48** と入力し、**リクエストの説明**に「ハンズオン実施のため」等コメントをいれていただき、**次へ**をクリックします。(既に 48 以上の数値が入力されている場合は本手順はスキップしてください)  
-
-![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase2.png?raw=true)
-
-連絡先の内容を確認のうえ、**リクエストを送信**をクリックし上限申請を行います。申請は自動で承認されます。
-
-![](https://github.com/kkuchima/appdev-gke-dojo/blob/main/advanced/images/quota_increase3.png?raw=true)
-
 ## **GKE Autopilot クラスタのデプロイ**
 まず最初に本ハンズオンで利用する GKE Autopilot クラスタを構築します。
 
@@ -259,7 +236,7 @@ gcloud container fleet mesh update \
 gcloud container fleet mesh describe --project ${PROJECT_ID}
 ```
   
-以下のように `controlPlaneManagement` と `dataPlaneManagement` が `ACTIVE` になることを確認します。  
+以下のように `controlPlaneManagement` が `ACTIVE` になることを確認します。  
 プロビジョニングが完了するまで数分かかります。  
 
 ```text
@@ -314,8 +291,6 @@ Running となりましたら `Control + c` で watch を終了してくださ�
 ```text
 NAME                                    READY   STATUS    RESTARTS   AGE
 istio-ingressgateway-7d99cdb85d-56r4j   1/1     Running   0          26h
-istio-ingressgateway-7d99cdb85d-lmxsr   1/1     Running   0          26h
-istio-ingressgateway-7d99cdb85d-q28kt   1/1     Running   0          20h
 ```
 
 ### **5. サンプルアプリケーションにサイドカーを injection する**
@@ -549,6 +524,76 @@ kubectl exec -n sleep -c sleep $SLEEP_POD -- curl -sS frontend.default -o /dev/n
 想定される出力：
 curl: (56) Recv failure: Connection reset by peer
 ```
+
+## **Authorization Policy の適用**
+
+### **1. Deny All ポリシーの適用**
+まず `currencyservice` に対して、Deny All のポリシーを適用し、どのサービスからも `currencyservice` に対してアクセスができないように設定します。  
+
+
+```yaml:authz-currency-deny-all.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: currency-policy
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
+```
+
+以下コマンドを実行し `currencyservice` に対して Deny All ポリシーを適用します。  
+
+```bash
+kubectl apply -f asm/mtls/authz-currency-deny-all.yaml
+```
+
+適用後、以下コマンドを実行し表示された URL に再度アクセスしてみましょう。  
+
+```bash
+echo http://${IP_ADDR}
+```
+
+`currencyservice` から `frontend` サービスに対する認可エラー (`access denied`) が表示されていることが確認できます。  
+
+### **2. Allow ポリシーの適用**
+
+`currencyservice` へのアクセスを許可するよう Allow ポリシーを構成します。  
+
+どのサービスからでもアクセスができないように、必要最低限のアクセス許可設定を投入します。  
+
+`currencyservice` へは `frontend` と `checkoutservice` からアクセスできる必要があるので、そこだけ許可しそれ以外は Deny のままに設定します。  
+
+今回は以下のように利用される Kubernetes の Service Account をベースに認可を設定します。  
+
+```yaml:authz-allow-frontend.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: currency-policy
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/default/sa/frontend"]
+  - from:
+    - source:
+        principals: ["cluster.local/ns/default/sa/checkoutservice"]
+```
+
+以下コマンドを実行し `currencyservice` に対して Allow ポリシーを適用します。  
+
+```bash
+kubectl apply -f asm/mtls/authz-allow-frontend.yaml
+```
+
+再度 Online Boutique にアクセスしてみましょう。Allow Policy によりアクセス可能となっていることが確認できます。  
+
+これにより、Authorization Policy により必要最低限のサービスからのアクセスに絞ることが確認できました。  
+
 これで Anthos Service Mesh のハンズオンは以上です。
 
 ## **Multi-cluster Gateway ハンズオン**
