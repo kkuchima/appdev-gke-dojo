@@ -524,6 +524,76 @@ kubectl exec -n sleep -c sleep $SLEEP_POD -- curl -sS frontend.default -o /dev/n
 想定される出力：
 curl: (56) Recv failure: Connection reset by peer
 ```
+
+## **Authorization Policy の適用**
+
+### **1. Deny All ポリシーの適用**
+まず `currencyservice` に対して、Deny All のポリシーを適用し、どのサービスからも `currencyservice` に対してアクセスができないように設定します。  
+
+
+```yaml:authz-currency-deny-all.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: currency-policy
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
+```
+
+以下コマンドを実行し `currencyservice` に対して Deny All ポリシーを適用します。  
+
+```bash
+kubectl apply -f asm/mtls/authz-currency-deny-all.yaml
+```
+
+適用後、以下コマンドを実行し表示された URL に再度アクセスしてみましょう。  
+
+```bash
+echo http://${IP_ADDR}
+```
+
+`currencyservice` から `frontend` サービスに対する認可エラー (`access denied`) が表示されていることが確認できます。  
+
+### **2. Allow ポリシーの適用**
+
+`currencyservice` へのアクセスを許可するよう Allow ポリシーを構成します。  
+
+どのサービスからでもアクセスができないように、必要最低限のアクセス許可設定を投入します。  
+
+`currencyservice` へは `frontend` と `checkoutservice` からアクセスできる必要があるので、そこだけ許可しそれ以外は Deny のままに設定します。  
+
+今回は以下のように利用される Kubernetes の Service Account をベースに認可を設定します。  
+
+```yaml:authz-allow-frontend.yaml
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: currency-policy
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/default/sa/frontend"]
+  - from:
+    - source:
+        principals: ["cluster.local/ns/default/sa/checkoutservice"]
+```
+
+以下コマンドを実行し `currencyservice` に対して Allow ポリシーを適用します。  
+
+```bash
+kubectl apply -f asm/mtls/authz-allow-frontend.yaml
+```
+
+再度 Online Boutique にアクセスしてみましょう。Allow Policy によりアクセス可能となっていることが確認できます。  
+
+これにより、Authorization Policy により必要最低限のサービスからのアクセスに絞ることが確認できました。  
+
 これで Anthos Service Mesh のハンズオンは以上です。
 
 ## **Multi-cluster Gateway ハンズオン**

@@ -1,0 +1,8 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: currency-policy
+spec:
+  selector:
+    matchLabels:
+      app: currencyservice
