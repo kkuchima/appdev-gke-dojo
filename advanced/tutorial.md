@@ -259,7 +259,7 @@ gcloud container fleet mesh update \
 gcloud container fleet mesh describe --project ${PROJECT_ID}
 ```
   
-以下のように `controlPlaneManagement` と `dataPlaneManagement` が `ACTIVE` になることを確認します。  
+以下のように `controlPlaneManagement` が `ACTIVE` になることを確認します。  
 プロビジョニングが完了するまで数分かかります。  
 
 ```text
@@ -314,8 +314,6 @@ Running となりましたら `Control + c` で watch を終了してくださ�
 ```text
 NAME                                    READY   STATUS    RESTARTS   AGE
 istio-ingressgateway-7d99cdb85d-56r4j   1/1     Running   0          26h
-istio-ingressgateway-7d99cdb85d-lmxsr   1/1     Running   0          26h
-istio-ingressgateway-7d99cdb85d-q28kt   1/1     Running   0          20h
 ```
 
 ### **5. サンプルアプリケーションにサイドカーを injection する**
