@@ -242,26 +242,31 @@ gcloud container fleet mesh describe --project ${PROJECT_ID}
 
 ```text
 membershipSpecs:
-  projects/1072516076243/locations/asia-northeast1/memberships/test-ap01:
+  projects/533307904432/locations/asia-northeast1/memberships/gke-tokyo:
     mesh:
       management: MANAGEMENT_AUTOMATIC
 membershipStates:
-  projects/1072516076243/locations/asia-northeast1/memberships/test-ap01:
+  projects/533307904432/locations/asia-northeast1/memberships/gke-tokyo:
     servicemesh:
       controlPlaneManagement:
         details:
         - code: REVISION_READY
-          details: 'Ready: asm-managed'
+          details: 'Ready: asm-managed-stable'
         state: ACTIVE
       dataPlaneManagement:
         details:
-        - code: OK
-          details: Service is running.
-        state: ACTIVE
+        - code: PROVISIONING
+          details: Service is provisioning.
+        state: PROVISIONING
     state:
       code: OK
-      description: 'Revision(s) ready for use: asm-managed.'
-      updateTime: '2023-09-05T03:49:39.353047207Z'
+      description: 'Revision(s) ready for use: asm-managed-stable.'
+      updateTime: '2023-12-05T05:15:02.556584982Z'
+name: projects/gcj-handson-2312052/locations/global/features/servicemesh
+resourceState:
+  state: ACTIVE
+spec: {}
+updateTime: '2023-12-05T05:15:09.944705067Z'
 ```
 
 ### **4. Ingress Gateway のデプロイ**
