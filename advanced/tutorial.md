@@ -337,6 +337,43 @@ shippingservice-58786fbcd4-bvtkq         2/2     Running   0          6m32s
 
 Istio の Gateway リソースを適用し、ingress gateway 経由でサンプルアプリケーションを公開できるようにします。  
 
+```yaml:gw-frontend.yaml
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: frontend-gateway
+  namespace: gateway
+spec:
+  selector:
+    istio: ingressgateway # use Istio default gateway implementation
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: frontend-ingress
+  namespace: gateway
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - frontend-gateway
+  http:
+  - route:
+    - destination:
+        host: frontend.default.svc.cluster.local
+        port:
+          number: 80
+```
+
+上記マニフェストを適用します。  
+
 ```bash
 kubectl apply -f asm/istio-manifests/gw-frontend.yaml
 ```
@@ -451,6 +488,11 @@ echo http://${IP_ADDR}
 ```bash
 kubectl delete -f asm/istio-manifests/dr-catalog.yaml
 kubectl delete -f asm/istio-manifests/vs-split-traffic.yaml
+```
+
+少し時間を空けて、ProductCatalog v2 も削除します。  
+
+```bash
 kubectl delete -f asm/istio-manifests/productcatalog-v2.yaml
 ```
 
