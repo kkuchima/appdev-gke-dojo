@@ -258,7 +258,7 @@ Cloud Build から GKE クラスタへデプロイを行うため、Cloud Build 
 
 ```bash
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --member "serviceAccount:${PROJECT_NUM}@cloudbuild.gserviceaccount.com" \
+    --member "serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
     --role "roles/container.developer"
 ```
 
