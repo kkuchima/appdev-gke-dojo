@@ -230,8 +230,8 @@ sed -i "s/PROJECT_ID/$PROJECT_ID/g" kubernetes-manifests/deployment-alpine.yaml
 
 Cloud Build ではビルド中のステップとして、静的解析(PEP8)と簡単なユニットテストに加えて、OSS の [Trivy](https://trivy.dev/) による Dockerfile の構成スキャンとコンテナイメージの脆弱性スキャンを実装しています。  
 Dockerfile の構成スキャンでは重大度 `HIGH` 以上の脆弱性、コンテナイメージ脆弱性スキャンでは重大度 `CRITICAL` 以上の脆弱性を検出するように構成しています。  
-コンテナイメージスキャンでは引数に　`--exit-code 1` を設定しており、コンテナイメージの脆弱性が検出された場合はパイプラインが異常終了するようになっています。  
-全てのステップが正常終了すると最終的には GKE クラスタにサンプルアプリケーションをデプロイする CI/CD パイプラインとなっていますす。  
+コンテナイメージスキャンでは引数に　`--exit-code 1` を設定しており、`CRITICAL` 以上のコンテナイメージの脆弱性が検出された場合はパイプラインが異常終了するようになっています。  
+全てのステップが正常終了すると最終的には GKE クラスタにサンプルアプリケーションをデプロイする CI/CD パイプラインとなっています。  
 
 ```yaml
 # cloudbuild.yaml 抜粋
@@ -258,7 +258,7 @@ Cloud Build から GKE クラスタへデプロイを行うため、Cloud Build 
 
 ```bash
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-    --member "serviceAccount:${PROJECT_NUM}@cloudbuild.gserviceaccount.com" \
+    --member "serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
     --role "roles/container.developer"
 ```
 
@@ -268,7 +268,7 @@ Cloud Build パイプラインを実行します。今回は Git レポジトリ
 gcloud builds submit --config cloudbuild.yaml .
 ```
 
-実行した CI/CD パイプラインが異常終了します。これはサンプルアプリケーションで利用しているベースイメージ `FROM python:3.12` には重大な脆弱性が含まれており、Trivy の脆弱性スキャンで検知することができたためです。  
+実行した CI/CD パイプラインが異常終了します。これはサンプルアプリケーションで利用しているベースイメージ `python:3.12` には重大な脆弱性が含まれており、Trivy の脆弱性スキャンで検知することができたためです。  
 本来であればこの脆弱性の対処を行うべきですが、 Artifact Registry の脆弱性スキャンでも同様に脆弱性を検知できるか確認するため、今度は CI/CD パイプラインを通さずに Artifact Registry に直接コンテナイメージを Push します。  
 
 ```bash
