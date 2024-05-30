@@ -204,7 +204,7 @@ export PROJECT_NUMBER=$(gcloud projects describe ${PROJECT_ID} --format="value(p
 まず `lab1` ディレクトリに移動します。  
 
 ```bash
-cd lab1
+cd ~/appdev-gke-dojo/security/lab1
 ```
 
 Artifact Registry に CI で作成する成果物であるコンテナイメージを保管するためのレポジトリを作成しておきます。
@@ -275,6 +275,11 @@ gcloud builds submit --config cloudbuild.yaml .
 gcloud builds submit --tag asia-northeast1-docker.pkg.dev/${PROJECT_ID}/app-repo/pets:v1.0
 ```
 
+初回 Push 時は自動スキャンが実行されないため、同じ内容で再度 Push します。  
+```bash
+gcloud builds submit --tag asia-northeast1-docker.pkg.dev/${PROJECT_ID}/app-repo/pets:v1.0
+```
+
 ここから GUI 操作に切り替えます。  
 Artifact Registry の脆弱性スキャン結果を確認するため、以下コマンドの実行結果として出力された URL をクリックします。  
 
@@ -286,7 +291,7 @@ echo https://console.cloud.google.com/artifacts/docker/${PROJECT_ID}/asia-northe
 
 ### **1-3. 軽量なベースイメージの利用**
 Cloud Shell での操作に戻ります。  
-続いてコンテナのベースイメージを alpine という軽量なベースイメージに変更して同じパイプラインを流してみましょう。  
+続いてコンテナのベースイメージを alpine の軽量なベースイメージに変更して同じパイプラインを流してみましょう。  
 利用する Dockerfile の違いは以下のみです。  
 
 ```patch
@@ -301,6 +306,18 @@ gcloud builds submit --config cloudbuild-alpine.yaml .
 ```
 
 結果として trivy のイメージスキャンで重大な脆弱性は発見されず、GKE へのデプロイまで実行することができたかと思います。  
+以下のコマンドを実行し、GKE クラスタにデプロイできたことを確認します。  
+
+```bash
+kubectl get pods
+```
+
+以下のように `pets-deployment` から始まる Deployment が `Running` 状態であることを確認します。  
+```
+NAME                               READY   STATUS    RESTARTS   AGE
+pets-deployment-554fdd7db9-gb42d   1/1     Running   0          35s
+```
+
 alpine のような軽量ベースイメージは最低限のパッケージしか入っておらずアタックサーフェスが小さいため、脆弱性自体を持ちにくいというのが特徴の一つです。  
 軽量なベースイメージとしては他にも Distroless や slim 系などが存在します。それぞれ特徴が異なるため要件に応じてご利用を検討ください。  
 
@@ -341,13 +358,14 @@ gcloud container fleet policycontroller enable \
     --memberships=${CLUSTER_NAME}
 ```
 
-以下のコマンドを実行し、コンポーネントのインストール状況を確認します。  
+数分後、以下のコマンドを実行してコンポーネントのインストール状況を確認します。  
+`Policy Controller is not enabled for membership ~` と表示された場合は数分おいて再度実行してください。  
 
 ```bash
 gcloud container fleet policycontroller describe --memberships=${CLUSTER_NAME}
 ```
 
-数分後、以下の例のように `admission`, `audit`, `templateLibraryState` が `ACTIVE` となることを確認します。  
+以下の例のように `admission`, `audit`, `templateLibraryState` が `ACTIVE` となるまで待機します。  
 
 ```
 membershipStates:
@@ -389,7 +407,7 @@ verifydeprecatedapi                         9m48s
 ```
 
 今回利用する制約テンプレートは `K8sAllowedRepos` という、GKE から Pull 可能なリポジトリを allowlist 方式で定義する制約です。  
-以下のように制約テンプレートを Kind にしていした制約リソースを作成し、自分のプロジェクトの `app-repo` からのみコンテナイメージを Pull できるようにします。  
+以下のように制約テンプレートを Kind に指定した制約リソースを作成し、自分のプロジェクトの `app-repo` からのみコンテナイメージを Pull できるようにします。  
 制約リソースでは制約の適用対象や内容を定義します。  
 
 ```yaml
@@ -443,7 +461,7 @@ kubectl delete -f kubernetes-manifests/allow-myrepo.yaml
 まず `lab2` ディレクトリに移動します。  
 
 ```bash
-cd lab2
+cd ~/appdev-gke-dojo/security/lab2
 ```
 
 GKE クラスタに以下の不適切な設定の Pod をデプロイします。  
@@ -503,12 +521,12 @@ bad-pod / # ls
 bin  boot  dev  etc  home  lib  lib64  lost+found  mnt  opt  postinst  proc  root  run  sbin  sys  tmp  usr  var
 ```
 
-実行されているプロセスから kubelet が利用している kubeconfig も確認できます。  
+実行されているプロセスの情報から Node 上の kubelet が利用している kubeconfig も確認できます。  
 ```bash
 ps -ef | grep kubelet
 ```
 
-実際に kubeconfig を使って情報取得も可能です。  
+実際に kubeconfig を使って GKE 環境の情報取得も可能です。  
 ```bash
 kubectl --kubeconfig=/var/lib/kubelet/kubeconfig get pods
 ```
@@ -527,16 +545,17 @@ hostpath をマウントした Pod から簡単にホストへエスケープす
 ### **2-2. 不適切な設定の Pod の検知**
 
 ここから GUI での操作に切り替えます。  
-まず [GKE Security Posture](https://console.cloud.google.com/kubernetes/security/concerns) に移動し、 `ホストのファイルまたはディレクトリをマウントする Pod` という構成の懸念事項が出力されていることを確認します。  
-`ホストのファイルまたはディレクトリをマウントする Pod` リンクをクリックし、脅威の内容を確認します。  
-また、`影響を受けるワークロード` タブからこの懸念事項を持っている Pod を特定することもできます。今回利用した `bad-pod` が表示されていると思います。  
+まず [GKE Security Posture](https://console.cloud.google.com/kubernetes/security/dashboard) に移動し、 画面中部左側の`ワークロードの構成`に`ホストのファイルまたはディレクトリをマウントする Pod` という構成の懸念事項が出力されていることを確認します。  
+出力されていない場合は数分待機します。  
+出力されている場合は`ホストのファイルまたはディレクトリをマウントする Pod` リンクをクリックし、脅威の内容を確認します。  
+また、`影響を受けるワークロード` タブからこの懸念事項を持っている Pod を特定することもできます。今回利用した `bad-pod` が表示されています。  
 
 確認を終えたら Cloud Shell 画面に戻ります。　　
 
 一度 `bad-pod` はクラスタから削除しておきます。  
 
 ```bash
-kubectl delete -f kubernetes-manifests/bad-pod.yaml 
+kubectl delete -f bad-pod.yaml
 ```
 
 ### **2-3. 不適切な設定の Pod の防止**
@@ -573,7 +592,7 @@ kubectl apply -f allow-hostpath.yaml
 では、`bad-pod` をデプロイしてみましょう。  
 
 ```bash
-kubectl apply -f kubernetes-manifests/bad-pod.yaml 
+kubectl apply -f bad-pod.yaml
 ```
 
 うまくいけば以下のように Policy Controller の制約により、デプロイが阻止されていることが分かります。  
@@ -584,12 +603,11 @@ Error from server (Forbidden): error when creating "kubernetes-manifests/bad-pod
 
 Policy Controller ではこれら以外にも特権コンテナのデプロイを禁止したり、root ユーザーで実行可能にすることを防ぐための制約テンプレートなどが最初から用意されています。  
 セキュリティリスクのある構成を禁止するだけでなく、いわゆる Kubernetes のベストプラクティスを強制させるための制約テンプレートもあるため、興味があれば他にも試してみてください。  
-制約テンプレートの一覧は以下のドキュメントから確認できます。  
-https://cloud.google.com/kubernetes-engine/enterprise/policy-controller/docs/latest/reference/constraint-template-library
+制約テンプレートの一覧は[こちらのドキュメント](https://cloud.google.com/kubernetes-engine/enterprise/policy-controller/docs/latest/reference/constraint-template-library)から確認できます。  
 
 ### **2-4. Cluster-wide Network Policy による通信制御**
 
-歳後に Cluster-wide Network Policy の機能により、GKE クラスタレベルでのトラフィック制御を試してみます。  
+最後に Cluster-wide Network Policy の機能により、GKE クラスタレベルでのトラフィック制御を試してみます。  
 Cluster-wide Network Policy は通常の Namespace スコープの Network Policy とは異なり、クラスタスコープのポリシーを適用することができます。  
 これにより、クラスタ全体で強制させたい通信制御を定義することが可能です。  
 
@@ -651,6 +669,15 @@ spec:
 kubectl exec frontend -- curl pets-service/random-pets -s
 ```
 
+出力例：
+```
+$ kubectl exec frontend -- curl pets-service/random-pets -s
+{"breed":"German Shorthaired Pointer"}
+
+$ kubectl exec frontend -- curl pets-service/random-pets -s
+{"breed":"Rottweiler"}
+```
+
 また、`bad-pod-curl` という当該ラベルが付与されていない Pod もデプロイし動作を確認します。  
 
 ```bash
@@ -663,7 +690,7 @@ kubectl exec bad-pod-curl -- curl pets-service/random-pets -s
 ```
 
 一向にレスポンスが返らずタイムアウトします。タイムアウトまで待てない場合は Ctrl + C で終了します。  
-Cluster-wide Network Policy が正常に動作し、通信制御できることを確認しました。  
+これより Cluster-wide Network Policy が正常に動作し、通信制御できることを確認できました。  
 
 以上で Lab2 は終了です。  
 
@@ -671,7 +698,7 @@ Cluster-wide Network Policy が正常に動作し、通信制御できること�
 
 <walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>
 
-これにて GKE のセキュリティ機能を利用してガードレールを構築する方法を学習しました。  
+GKE のセキュリティ機能を利用してガードレールを構築する方法を学習しました。  
 
 デモで使った資材が不要な方は、次の手順でクリーンアップを行って下さい。
 
