@@ -326,7 +326,7 @@ alpine のような軽量ベースイメージは最低限のパッケージし�
 せっかくセキュアな CI/CD パイプラインを用意しても、OSS をデプロイする場合や直接 Kubectl でデプロイされてしまう場合など、CI/CD 上の脆弱性スキャンがバイパスされてしまう可能性があります。  
 また、あまり頻繁にデプロイしないようなアプリケーションでは、CI 実行時には発見されなかった脆弱性が後から発見される可能性もあります。  
 そのようなケースでは、GKE Security Posture の機能の一つである、継続的脆弱性スキャンが有効です。  
-この機能により、GKE 上で動いているワークロードに対して継続的に脆弱性スキャンを実行することができるため、CI/CD パイプラインや Artifact Regsitry を通っていないようなワークロードの脆弱性の検知が可能となります。  
+この機能により、GKE 上で動いているワークロードに対して継続的に脆弱性スキャンを実行することができるため、CI/CD パイプラインや Artifact Registry を通っていないようなワークロードの脆弱性の検知が可能となります。  
 
 本機能を試すために CI/CD を通さずに直接 kubectl を使って Maven の脆弱性が含まれた Pod をデプロイしてみます。  
 
@@ -694,7 +694,7 @@ kubectl exec bad-pod-curl -- curl pets-service/random-pets -s
 
 以上で Lab2 は終了です。  
 
-## **Congraturations!**
+## **Congratulations!**
 
 <walkthrough-conclusion-trophy></walkthrough-conclusion-trophy>
 
